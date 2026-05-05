@@ -51,7 +51,7 @@ class MeiteiMayekTransliterator {
       For technically correct plain Unicode, change this to:
       this.apunIyek = "꯭";
     */
-    this.apunIyek = "꯭";
+    this.apunIyek = "◌꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
@@ -169,6 +169,22 @@ class MeiteiMayekTransliterator {
     return w;
   }
 
+  normalizeTextingShortcuts(word) {
+    let w = word.toLowerCase();
+
+    /*
+      Texting shortcut:
+      aw / aww is used like aou.
+
+      aw  -> aou
+      aww -> aou
+    */
+    w = w.replace(/aww/g, "aou");
+    w = w.replace(/aw/g, "aou");
+
+    return w;
+  }
+
   tokenizeWord(word) {
     word = word.toLowerCase().trim();
     const tokens = [];
@@ -263,14 +279,6 @@ class MeiteiMayekTransliterator {
     const previousToken = index > 0 ? tokens[index - 1] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    /*
-      consonant + ai / ay / ao
-      The 'a' becomes Cheitap ꯥ.
-
-      kai -> ꯀꯥꯏ
-      kay -> ꯀꯥꯏ
-      kao -> ꯀꯥꯎ
-    */
     if (!previousToken || !this.isConsonant(previousToken)) {
       return false;
     }
@@ -281,11 +289,6 @@ class MeiteiMayekTransliterator {
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
-    /*
-      Resubstitution Rule:
-      When y or i comes after a vowel at the end of a syllable,
-      use the Mapum Mayek for i/ee: ꯏ.
-    */
     if (token !== "y" && token !== "i") {
       return false;
     }
@@ -323,14 +326,6 @@ class MeiteiMayekTransliterator {
     const previousPreviousToken = index > 1 ? tokens[index - 2] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    /*
-      consonant + a + o
-      The 'o' becomes Mapum vowel oo/u: ꯎ.
-
-      kao -> ꯀꯥꯎ
-      chao -> ꯆꯥꯎ
-      mao -> ꯃꯥꯎ
-    */
     if (
       previousToken === "a" &&
       previousPreviousToken &&
@@ -342,6 +337,53 @@ class MeiteiMayekTransliterator {
     }
 
     return false;
+  }
+
+  shouldUseWAsOu(tokens, index) {
+    const token = tokens[index];
+
+    /*
+      w after consonant is used like ou.
+      tw -> tou -> ꯇꯧ
+      kw -> kou -> ꯀꯧ
+    */
+    if (token !== "w") {
+      return false;
+    }
+
+    const previousToken = index > 0 ? tokens[index - 1] : null;
+
+    if (!previousToken) {
+      return false;
+    }
+
+    return this.isConsonant(previousToken);
+  }
+
+  shouldExpandInitialNgToNang(tokens, index) {
+    const token = tokens[index];
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+
+    /*
+      If ng begins a word/syllable and is followed by a consonant,
+      treat it as explicit nang, not naang.
+
+      nglei -> nanglei
+      ngkhong -> nangkhong
+    */
+    if (token !== "ng") {
+      return false;
+    }
+
+    if (index !== 0) {
+      return false;
+    }
+
+    if (!nextToken) {
+      return false;
+    }
+
+    return this.isConsonant(nextToken);
   }
 
   shouldUseLonsum(tokens, index) {
@@ -358,13 +400,6 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
-    /*
-      apng = a + p + ng
-
-      Since 'a' is the beginning independent vowel,
-      p must stay Mapum Mayek:
-      apng -> ꯑꯄꯪ, not ꯑꯞꯪ
-    */
     if (index === 1 && this.hasOwn(this.initialVowels, previousToken)) {
       return false;
     }
@@ -384,20 +419,6 @@ class MeiteiMayekTransliterator {
     return false;
   }
 
-  /*
-    Generate a/aa alternatives when:
-    - user wrote normal 'a'
-    - user did not explicitly write 'aa'
-    - there is at least one consonant + a position
-
-    This works even when the word has other vowels later.
-
-    Example:
-    kang     -> kang / kaang
-    kanglei  -> kanglei / kaanglei
-    kanada   -> kanada / kaanada / kanaada / kaanaada etc.
-    kaanglei -> no alternatives because user explicitly wrote aa
-  */
   shouldGenerateACombinations(rawWord) {
     const word = rawWord.toLowerCase().trim();
 
@@ -424,16 +445,6 @@ class MeiteiMayekTransliterator {
     return false;
   }
 
-  /*
-    Creates all possible versions of a word where each consonant + a
-    can be treated as either:
-    - short/inherent a: a
-    - long a: aa
-
-    Example:
-    kanglei -> kanglei, kaanglei
-    kanada  -> kanada, kaanada, kanaada, kaanaada, kanadaa, etc.
-  */
   generateACombinationWords(rawWord) {
     const word = rawWord.toLowerCase().trim();
     const tokens = this.tokenizeWord(word);
@@ -471,6 +482,8 @@ class MeiteiMayekTransliterator {
       word = this.normalizeEnglishPronunciation(word);
     }
 
+    word = this.normalizeTextingShortcuts(word);
+
     const tokens = this.tokenizeWord(word);
     let result = "";
 
@@ -493,28 +506,16 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      /*
-        consonant + ai / ay / ao:
-        The 'a' becomes Cheitap ꯥ.
-      */
       if (this.shouldUseCheitapAForAiAo(tokens, index)) {
         result += "ꯥ";
         continue;
       }
 
-      /*
-        vowel + y/i at syllable end:
-        The y/i becomes Mapum i/ee ꯏ.
-      */
       if (this.shouldUseMapumIResubstitution(tokens, index)) {
         result += "ꯏ";
         continue;
       }
 
-      /*
-        consonant + ao:
-        The 'o' becomes Mapum oo/u ꯎ.
-      */
       if (this.shouldUseMapumUResubstitution(tokens, index)) {
         result += "ꯎ";
         continue;
@@ -526,14 +527,27 @@ class MeiteiMayekTransliterator {
       }
 
       /*
-        Special short-a + ng rule:
-        kang -> k + short a + cheitap ng = ꯀꯪ
-        ang  -> initial a + cheitap ng = ꯑꯪ
+        w after consonant behaves like ou.
+        tw -> ꯇꯧ
+      */
+      if (this.shouldUseWAsOu(tokens, index)) {
+        result += this.middleVowels["ou"];
+        continue;
+      }
 
-        Important:
-        kaang is tokenized as k + aa + ng.
-        Since previous token is aa, this rule does not apply.
-        kaang -> ꯀꯥꯡ by normal Lonsum rule.
+      /*
+        Initial ng + consonant behaves like explicit nang.
+        nglei -> ꯅꯪꯂꯩ
+      */
+      if (this.shouldExpandInitialNgToNang(tokens, index)) {
+        result += this.mapum["n"] + this.cheitap["ng"];
+        continue;
+      }
+
+      /*
+        Special short-a + ng rule:
+        kang -> ꯀꯪ
+        kaang -> ꯀꯥꯡ
       */
       if (token === "ng") {
         const previousToken = index > 0 ? tokens[index - 1] : null;
@@ -557,7 +571,6 @@ class MeiteiMayekTransliterator {
       if (this.hasOwn(this.mapum, token)) {
         result += this.mapum[token];
 
-        // consonant + r -> consonant + Apun Iyek + r
         if (this.shouldUseApunIyekBeforeR(tokens, index)) {
           result += this.apunIyek;
         }
@@ -608,7 +621,8 @@ function getPartsWithWordPositions(text) {
 }
 
 function getWordOptions(word) {
-  const normalizedWord = transliterator.normalizeEnglishPronunciation(word);
+  let normalizedWord = transliterator.normalizeEnglishPronunciation(word);
+  normalizedWord = transliterator.normalizeTextingShortcuts(normalizedWord);
 
   if (transliterator.shouldGenerateACombinations(normalizedWord)) {
     const variants = transliterator.generateACombinationWords(normalizedWord);
@@ -645,28 +659,29 @@ function renderSuggestions(parts) {
   const suggestionsBox = document.getElementById("suggestionsBox");
   suggestionsBox.innerHTML = "";
 
-  const ambiguousWords = parts.filter((part) => {
-    if (part.type !== "word") {
-      return false;
-    }
+  /*
+    Predictive suggestions disappear immediately after pressing space.
+    So suggestions are shown only for the current active word.
+  */
+  const lastPart = parts[parts.length - 1];
 
-    const options = getWordOptions(part.text);
-    return options.length > 1;
-  });
-
-  if (ambiguousWords.length === 0) {
+  if (!lastPart || lastPart.type !== "word") {
     return;
   }
 
-  const latestAmbiguousWord = ambiguousWords[ambiguousWords.length - 1];
-  const options = getWordOptions(latestAmbiguousWord.text);
+  const currentWord = lastPart;
+  const options = getWordOptions(currentWord.text);
+
+  if (options.length <= 1) {
+    return;
+  }
 
   const label = document.createElement("div");
   label.className = "suggestion-label";
-  label.textContent = `Choose spelling for "${latestAmbiguousWord.text}"`;
+  label.textContent = `Choose spelling for "${currentWord.text}"`;
   suggestionsBox.appendChild(label);
 
-  const key = latestAmbiguousWord.wordIndex;
+  const key = currentWord.wordIndex;
 
   options.forEach((option, optionIndex) => {
     const chip = document.createElement("button");
