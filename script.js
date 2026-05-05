@@ -47,7 +47,7 @@ class MeiteiMayekTransliterator {
     // Apun Iyek / virama-like combining mark.
     // Used for consonant + r conjuncts, for example:
     // dra -> ꯗ꯭ꯔ
-    this.apunIyek = "꯭";
+    this.apunIyek = "◌꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
