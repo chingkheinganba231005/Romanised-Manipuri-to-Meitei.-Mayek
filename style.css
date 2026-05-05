@@ -82,6 +82,7 @@ textarea:focus {
   margin-bottom: 0;
   min-height: 55px;
   letter-spacing: 0.03em;
+  white-space: pre-line;
 }
 
 @media (max-width: 600px) {
