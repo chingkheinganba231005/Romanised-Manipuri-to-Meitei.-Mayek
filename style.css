@@ -1,0 +1,126 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #f5f0e8, #e8dcc8);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #2a1f16;
+}
+
+.container {
+  width: 100%;
+  max-width: 850px;
+}
+
+.card {
+  background: #ffffff;
+  padding: 35px;
+  border-radius: 22px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: #6f6258;
+  margin-bottom: 30px;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+textarea {
+  width: 100%;
+  min-height: 130px;
+  resize: vertical;
+  padding: 15px;
+  border-radius: 14px;
+  border: 1px solid #c9b9a6;
+  font-size: 1.1rem;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: #7b4b2a;
+}
+
+button {
+  margin-top: 15px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  background: #7b4b2a;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #5f391f;
+}
+
+.output-box {
+  margin-top: 28px;
+  background: #f8f2ea;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid #dbcbb8;
+}
+
+.output-box h2 {
+  margin-top: 0;
+}
+
+#outputText {
+  font-size: 2rem;
+  line-height: 1.6;
+  word-wrap: break-word;
+  margin-bottom: 0;
+}
+
+.examples {
+  margin-top: 25px;
+}
+
+.examples h3 {
+  margin-bottom: 8px;
+}
+
+.examples button {
+  background: #c59b72;
+  margin-right: 8px;
+  margin-top: 8px;
+}
+
+.examples button:hover {
+  background: #a77c54;
+}
+
+@media (max-width: 600px) {
+  .card {
+    padding: 24px;
+  }
+
+  h1 {
+    font-size: 1.7rem;
+  }
+
+  #outputText {
+    font-size: 1.6rem;
+  }
+}
