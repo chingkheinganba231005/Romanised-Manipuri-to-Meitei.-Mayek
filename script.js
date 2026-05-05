@@ -44,6 +44,8 @@ class MeiteiMayekTransliterator {
       ng: "ꯪ"
     };
 
+    this.apunIyek = "꯭";
+
     this.middleVowels = {
       aa: "ꯥ",
       ee: "ꯤ",
@@ -196,15 +198,16 @@ class MeiteiMayekTransliterator {
     return tokens;
   }
 
+  hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  }
+
   isConsonant(token) {
-    return Object.prototype.hasOwnProperty.call(this.mapum, token);
+    return this.hasOwn(this.mapum, token);
   }
 
   isVowel(token) {
-    return (
-      Object.prototype.hasOwnProperty.call(this.initialVowels, token) ||
-      Object.prototype.hasOwnProperty.call(this.middleVowels, token)
-    );
+    return this.hasOwn(this.initialVowels, token) || this.hasOwn(this.middleVowels, token);
   }
 
   previousTokenIsMapumConsonant(tokens, index) {
@@ -212,7 +215,7 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
-    return Object.prototype.hasOwnProperty.call(this.mapum, tokens[index - 1]);
+    return this.hasOwn(this.mapum, tokens[index - 1]);
   }
 
   shouldUseCheitapNg(tokens, index) {
@@ -225,14 +228,28 @@ class MeiteiMayekTransliterator {
     return this.previousTokenIsMapumConsonant(tokens, index);
   }
 
+  shouldUseApunIyekBeforeR(tokens, index) {
+    const token = tokens[index];
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+
+    if (!this.isConsonant(token)) {
+      return false;
+    }
+
+    if (token === "r") {
+      return false;
+    }
+
+    return nextToken === "r";
+  }
+
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
     /*
       Resubstitution Rule 2:
       When y or i comes after a vowel at the end of a syllable,
-      use the Mapum Mayek for i/ee: ꯏ
-      instead of the Cheitap Mayek vowel sign ꯤ or Mapum y ꯌ.
+      use the Mapum Mayek for i/ee: ꯏ.
     */
     if (token !== "y" && token !== "i") {
       return false;
@@ -263,7 +280,7 @@ class MeiteiMayekTransliterator {
   shouldUseLonsum(tokens, index) {
     const token = tokens[index];
 
-    if (!Object.prototype.hasOwnProperty.call(this.lonsum, token)) {
+    if (!this.hasOwn(this.lonsum, token)) {
       return false;
     }
 
@@ -282,14 +299,11 @@ class MeiteiMayekTransliterator {
       p must stay Mapum Mayek:
       apng -> ꯑꯄꯪ, not ꯑꯞꯪ
     */
-    if (
-      index === 1 &&
-      Object.prototype.hasOwnProperty.call(this.initialVowels, previousToken)
-    ) {
+    if (index === 1 && this.hasOwn(this.initialVowels, previousToken)) {
       return false;
     }
 
-    if (!Object.prototype.hasOwnProperty.call(this.middleVowels, previousToken)) {
+    if (!this.hasOwn(this.middleVowels, previousToken)) {
       return false;
     }
 
@@ -316,7 +330,7 @@ class MeiteiMayekTransliterator {
       const token = tokens[index];
       const isFirst = index === 0;
 
-      if (Object.prototype.hasOwnProperty.call(this.numbers, token)) {
+      if (this.hasOwn(this.numbers, token)) {
         result += this.numbers[token];
         continue;
       }
@@ -326,24 +340,21 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      if (
-        isFirst &&
-        Object.prototype.hasOwnProperty.call(this.initialVowels, token)
-      ) {
+      if (isFirst && this.hasOwn(this.initialVowels, token)) {
         result += this.initialVowels[token];
         continue;
       }
 
       /*
-        Resubstitution Rule 2 must come before normal middle-vowel conversion.
-        Otherwise, i would become ꯤ too early.
+        This must come before normal middle-vowel conversion.
+        Otherwise i would become ꯤ too early.
       */
       if (this.shouldUseMapumIResubstitution(tokens, index)) {
         result += "ꯏ";
         continue;
       }
 
-      if (Object.prototype.hasOwnProperty.call(this.middleVowels, token)) {
+      if (this.hasOwn(this.middleVowels, token)) {
         result += this.middleVowels[token];
         continue;
       }
@@ -358,8 +369,19 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      if (Object.prototype.hasOwnProperty.call(this.mapum, token)) {
+      if (this.hasOwn(this.mapum, token)) {
         result += this.mapum[token];
+
+        /*
+          Consonant + r conjunct rule:
+          dra -> ꯗ꯭ꯔ
+          kra -> ꯀ꯭ꯔ
+          pra -> ꯄ꯭ꯔ
+        */
+        if (this.shouldUseApunIyekBeforeR(tokens, index)) {
+          result += this.apunIyek;
+        }
+
         continue;
       }
 
@@ -384,7 +406,7 @@ function handleTransliteration() {
   const output = transliterator.transliterateSentence(input);
 
   document.getElementById("outputText").textContent =
-    output.trim() === "" ? "ꯃꯤꯇꯩ ꯃꯌꯦꯛ output will appear here" : output;
+    output.trim() === "" ? "" : output;
 }
 
 document
