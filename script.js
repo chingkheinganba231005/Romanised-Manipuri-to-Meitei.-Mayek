@@ -44,9 +44,13 @@ class MeiteiMayekTransliterator {
       ng: "ꯪ"
     };
 
-    // Apun Iyek / virama-like combining mark.
-    // Used for consonant + r conjuncts, for example:
-    // dra -> ꯗ꯭ꯔ
+    /*
+      For a technically correct output, use:
+      this.apunIyek = "꯭";
+
+      For visible demo output on browsers/iPad/Chrome, use:
+      this.apunIyek = "◌꯭";
+    */
     this.apunIyek = "◌꯭";
 
     this.middleVowels = {
@@ -210,7 +214,10 @@ class MeiteiMayekTransliterator {
   }
 
   isVowel(token) {
-    return this.hasOwn(this.initialVowels, token) || this.hasOwn(this.middleVowels, token);
+    return (
+      this.hasOwn(this.initialVowels, token) ||
+      this.hasOwn(this.middleVowels, token)
+    );
   }
 
   previousTokenIsMapumConsonant(tokens, index) {
@@ -249,11 +256,6 @@ class MeiteiMayekTransliterator {
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
-    /*
-      Resubstitution Rule 2:
-      When y or i comes after a vowel at the end of a syllable,
-      use the Mapum Mayek for i/ee: ꯏ.
-    */
     if (token !== "y" && token !== "i") {
       return false;
     }
@@ -294,14 +296,7 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
-    /*
-      Important exception:
-      apng = a + p + ng
-
-      Since 'a' is the beginning independent vowel,
-      p must stay Mapum Mayek:
-      apng -> ꯑꯄꯪ, not ꯑꯞꯪ
-    */
+    // apng = a + p + ng → p should remain Mapum because a is initial.
     if (index === 1 && this.hasOwn(this.initialVowels, previousToken)) {
       return false;
     }
@@ -348,10 +343,7 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      /*
-        This must come before normal middle-vowel conversion.
-        Otherwise i would become ꯤ too early.
-      */
+      // Resubstitution Rule 2: vowel + y/i at syllable end → ꯏ.
       if (this.shouldUseMapumIResubstitution(tokens, index)) {
         result += "ꯏ";
         continue;
@@ -375,13 +367,7 @@ class MeiteiMayekTransliterator {
       if (this.hasOwn(this.mapum, token)) {
         result += this.mapum[token];
 
-        /*
-          Consonant + r conjunct rule:
-          dra     -> ꯗ꯭ꯔ
-          kra     -> ꯀ꯭ꯔ
-          pra     -> ꯄ꯭ꯔ
-          Chandra -> ꯆꯟꯗ꯭ꯔ
-        */
+        // consonant + r → consonant + apun iyek + r
         if (this.shouldUseApunIyekBeforeR(tokens, index)) {
           result += this.apunIyek;
         }
@@ -407,12 +393,18 @@ const transliterator = new MeiteiMayekTransliterator();
 
 function handleTransliteration() {
   const input = document.getElementById("inputText").value;
-  const output = transliterator.transliterateSentence(input);
+  const outputBox = document.getElementById("outputText");
 
-  document.getElementById("outputText").textContent =
-    output.trim() === "" ? "" : output;
+  if (input.trim() === "") {
+    outputBox.textContent = "";
+    return;
+  }
+
+  outputBox.textContent = transliterator.transliterateSentence(input);
 }
 
 document
   .getElementById("inputText")
   .addEventListener("input", handleTransliteration);
+
+handleTransliteration();
