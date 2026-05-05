@@ -51,7 +51,7 @@ class MeiteiMayekTransliterator {
       For technically correct plain Unicode, change this to:
       this.apunIyek = "꯭";
     */
-    this.apunIyek = "◌꯭";
+    this.apunIyek = "꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
@@ -264,7 +264,6 @@ class MeiteiMayekTransliterator {
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
     /*
-      Rule:
       consonant + ai / ay / ao
       The 'a' becomes Cheitap ꯥ.
 
@@ -283,7 +282,7 @@ class MeiteiMayekTransliterator {
     const token = tokens[index];
 
     /*
-      Resubstitution Rule 2:
+      Resubstitution Rule:
       When y or i comes after a vowel at the end of a syllable,
       use the Mapum Mayek for i/ee: ꯏ.
     */
@@ -325,7 +324,6 @@ class MeiteiMayekTransliterator {
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
     /*
-      Rule:
       consonant + a + o
       The 'o' becomes Mapum vowel oo/u: ꯎ.
 
@@ -395,9 +393,9 @@ class MeiteiMayekTransliterator {
     This works even when the word has other vowels later.
 
     Example:
-    kang    -> kang / kaang
-    kanglei -> kanglei / kaanglei
-    kanada  -> kanada / kaanada / kanaada / kaanaada etc.
+    kang     -> kang / kaang
+    kanglei  -> kanglei / kaanglei
+    kanada   -> kanada / kaanada / kanaada / kaanaada etc.
     kaanglei -> no alternatives because user explicitly wrote aa
   */
   shouldGenerateACombinations(rawWord) {
@@ -574,54 +572,180 @@ class MeiteiMayekTransliterator {
   }
 
   transliterateSentence(text, normalizeEnglish = true) {
-    const words = text.split(" ");
-
-    const sentenceResults = words.map((word) => {
-      if (word.trim() === "") {
-        return "";
-      }
-
-      const normalizedWord = normalizeEnglish
-        ? this.normalizeEnglishPronunciation(word)
-        : word.toLowerCase().trim();
-
-      if (this.shouldGenerateACombinations(normalizedWord)) {
-        const variants = this.generateACombinationWords(normalizedWord);
-
-        const transliteratedVariants = variants.map((variant) =>
-          this.transliterateWord(variant, false)
-        );
-
-        const uniqueOutputs = [...new Set(transliteratedVariants)];
-
-        if (uniqueOutputs.length === 1) {
-          return uniqueOutputs[0];
-        }
-
-        return uniqueOutputs
-          .map((output, index) => `${index + 1}. ${output}`)
-          .join("\n");
-      }
-
-      return this.transliterateWord(word, normalizeEnglish);
-    });
-
-    return sentenceResults.join(" ");
+    return text
+      .split(" ")
+      .map((word) => this.transliterateWord(word, normalizeEnglish))
+      .join(" ");
   }
 }
 
 const transliterator = new MeiteiMayekTransliterator();
 
-function handleTransliteration() {
-  const input = document.getElementById("inputText").value;
-  const outputBox = document.getElementById("outputText");
+let chosenVariants = {};
 
-  if (input.trim() === "") {
-    outputBox.textContent = "";
+function getPartsWithWordPositions(text) {
+  const parts = text.split(/(\s+)/);
+  const result = [];
+  let wordIndex = 0;
+
+  for (const part of parts) {
+    if (part.trim() === "") {
+      result.push({
+        type: "space",
+        text: part
+      });
+    } else {
+      result.push({
+        type: "word",
+        text: part,
+        wordIndex: wordIndex
+      });
+      wordIndex++;
+    }
+  }
+
+  return result;
+}
+
+function getWordOptions(word) {
+  const normalizedWord = transliterator.normalizeEnglishPronunciation(word);
+
+  if (transliterator.shouldGenerateACombinations(normalizedWord)) {
+    const variants = transliterator.generateACombinationWords(normalizedWord);
+
+    const options = variants.map((variant) => {
+      return {
+        roman: variant,
+        mayek: transliterator.transliterateWord(variant, false)
+      };
+    });
+
+    const uniqueOptions = [];
+    const seenMayek = new Set();
+
+    for (const option of options) {
+      if (!seenMayek.has(option.mayek)) {
+        uniqueOptions.push(option);
+        seenMayek.add(option.mayek);
+      }
+    }
+
+    return uniqueOptions;
+  }
+
+  return [
+    {
+      roman: normalizedWord,
+      mayek: transliterator.transliterateWord(word, true)
+    }
+  ];
+}
+
+function renderSuggestions(parts) {
+  const suggestionsBox = document.getElementById("suggestionsBox");
+  suggestionsBox.innerHTML = "";
+
+  const ambiguousWords = parts.filter((part) => {
+    if (part.type !== "word") {
+      return false;
+    }
+
+    const options = getWordOptions(part.text);
+    return options.length > 1;
+  });
+
+  if (ambiguousWords.length === 0) {
     return;
   }
 
-  outputBox.textContent = transliterator.transliterateSentence(input);
+  const latestAmbiguousWord = ambiguousWords[ambiguousWords.length - 1];
+  const options = getWordOptions(latestAmbiguousWord.text);
+
+  const label = document.createElement("div");
+  label.className = "suggestion-label";
+  label.textContent = `Choose spelling for "${latestAmbiguousWord.text}"`;
+  suggestionsBox.appendChild(label);
+
+  const key = latestAmbiguousWord.wordIndex;
+
+  options.forEach((option, optionIndex) => {
+    const chip = document.createElement("button");
+    chip.className = "suggestion-chip";
+    chip.type = "button";
+    chip.textContent = option.mayek;
+    chip.title = option.roman;
+
+    const selectedIndex = chosenVariants[key] ?? 0;
+
+    if (selectedIndex === optionIndex) {
+      chip.classList.add("selected");
+    }
+
+    chip.addEventListener("click", () => {
+      chosenVariants[key] = optionIndex;
+      handleTransliteration();
+    });
+
+    suggestionsBox.appendChild(chip);
+  });
+}
+
+function buildOutput(parts) {
+  let output = "";
+
+  for (const part of parts) {
+    if (part.type === "space") {
+      output += part.text;
+      continue;
+    }
+
+    const options = getWordOptions(part.text);
+    const key = part.wordIndex;
+
+    if (options.length > 1) {
+      const selectedIndex = chosenVariants[key] ?? 0;
+      output += options[selectedIndex].mayek;
+    } else {
+      output += options[0].mayek;
+    }
+  }
+
+  return output;
+}
+
+function cleanChosenVariants(parts) {
+  const validWordIndexes = new Set();
+
+  for (const part of parts) {
+    if (part.type === "word") {
+      validWordIndexes.add(part.wordIndex);
+    }
+  }
+
+  for (const key of Object.keys(chosenVariants)) {
+    if (!validWordIndexes.has(Number(key))) {
+      delete chosenVariants[key];
+    }
+  }
+}
+
+function handleTransliteration() {
+  const input = document.getElementById("inputText").value;
+  const outputBox = document.getElementById("outputText");
+  const suggestionsBox = document.getElementById("suggestionsBox");
+
+  if (input.trim() === "") {
+    outputBox.textContent = "";
+    suggestionsBox.innerHTML = "";
+    chosenVariants = {};
+    return;
+  }
+
+  const parts = getPartsWithWordPositions(input);
+  cleanChosenVariants(parts);
+  renderSuggestions(parts);
+
+  outputBox.textContent = buildOutput(parts);
 }
 
 document
