@@ -51,7 +51,7 @@ class MeiteiMayekTransliterator {
       For visible demo output on browsers/iPad/Chrome, use:
       this.apunIyek = "◌꯭";
     */
-    this.apunIyek = "◌꯭";
+    this.apunIyek = "꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
