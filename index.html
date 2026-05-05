@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Meitei Mayek Transliterator</title>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>Meitei Mayek Transliterator</h1>
+      <p class="subtitle">
+        Convert Romanised Manipuri or English-style names into Meitei Mayek script.
+      </p>
+
+      <label for="inputText">Enter Romanised word or sentence</label>
+      <textarea
+        id="inputText"
+        placeholder="Example: Chingkhei, Romy, Alex, apng, ishing"
+      ></textarea>
+
+      <button onclick="handleTransliteration()">Transliterate</button>
+
+      <div class="output-box">
+        <h2>Output</h2>
+        <p id="outputText">ꯃꯤꯇꯩ ꯃꯌꯦꯛ output will appear here</p>
+      </div>
+
+      <div class="examples">
+        <h3>Examples</h3>
+        <button onclick="tryExample('Chingkhei')">Chingkhei</button>
+        <button onclick="tryExample('apng')">apng</button>
+        <button onclick="tryExample('Romy')">Romy</button>
+        <button onclick="tryExample('Alex')">Alex</button>
+        <button onclick="tryExample('ishing')">ishing</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
