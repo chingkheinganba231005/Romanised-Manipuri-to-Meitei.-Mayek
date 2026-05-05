@@ -51,7 +51,7 @@ class MeiteiMayekTransliterator {
       For technically correct plain Unicode, change this to:
       this.apunIyek = "꯭";
     */
-    this.apunIyek = "◌꯭";
+    this.apunIyek = "꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
