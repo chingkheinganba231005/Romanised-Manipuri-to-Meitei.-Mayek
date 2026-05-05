@@ -66,18 +66,22 @@ textarea:focus {
   padding: 22px;
   border-radius: 16px;
   border: 1px solid #dbcbb8;
+  font-family: "Noto Sans Meetei Mayek", Arial, sans-serif;
 }
 
 .output-box h2 {
   margin-top: 0;
+  font-family: Arial, sans-serif;
 }
 
 #outputText {
-  font-size: 2rem;
-  line-height: 1.6;
+  font-family: "Noto Sans Meetei Mayek", Arial, sans-serif;
+  font-size: 2.4rem;
+  line-height: 1.8;
   word-wrap: break-word;
   margin-bottom: 0;
   min-height: 55px;
+  letter-spacing: 0.03em;
 }
 
 @media (max-width: 600px) {
@@ -90,6 +94,6 @@ textarea:focus {
   }
 
   #outputText {
-    font-size: 1.6rem;
+    font-size: 1.8rem;
   }
 }
