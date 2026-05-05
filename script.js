@@ -45,13 +45,13 @@ class MeiteiMayekTransliterator {
     };
 
     /*
-      For a technically correct output, use:
-      this.apunIyek = "꯭";
-
-      For visible demo output on browsers/iPad/Chrome, use:
+      For visible demo output on browsers/iPad/Chrome:
       this.apunIyek = "◌꯭";
+
+      For technically correct plain text output:
+      this.apunIyek = "꯭";
     */
-    this.apunIyek = "꯭";
+    this.apunIyek = "◌꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
@@ -253,9 +253,40 @@ class MeiteiMayekTransliterator {
     return nextToken === "r";
   }
 
+  shouldUseCheitapAForAiAo(tokens, index) {
+    const token = tokens[index];
+
+    if (token !== "a") {
+      return false;
+    }
+
+    const previousToken = index > 0 ? tokens[index - 1] : null;
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+
+    /*
+      Rule:
+      consonant + ai / ay / ao
+      The 'a' becomes Cheitap ꯥ.
+
+      kai -> ꯀꯥꯏ
+      kay -> ꯀꯥꯏ
+      kao -> ꯀꯥꯎ
+    */
+    if (!previousToken || !this.isConsonant(previousToken)) {
+      return false;
+    }
+
+    return nextToken === "i" || nextToken === "y" || nextToken === "o";
+  }
+
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
+    /*
+      Resubstitution Rule 2:
+      When y or i comes after a vowel at the end of a syllable,
+      use the Mapum Mayek for i/ee: ꯏ.
+    */
     if (token !== "y" && token !== "i") {
       return false;
     }
@@ -277,6 +308,39 @@ class MeiteiMayekTransliterator {
 
     if (this.isConsonant(nextToken)) {
       return true;
+    }
+
+    return false;
+  }
+
+  shouldUseMapumUResubstitution(tokens, index) {
+    const token = tokens[index];
+
+    if (token !== "o") {
+      return false;
+    }
+
+    const previousToken = index > 0 ? tokens[index - 1] : null;
+    const previousPreviousToken = index > 1 ? tokens[index - 2] : null;
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+
+    /*
+      Rule:
+      consonant + a + o
+      The 'o' becomes Mapum vowel oo/u: ꯎ.
+
+      kao -> ꯀꯥꯎ
+      chao -> ꯆꯥꯎ
+      mao -> ꯃꯥꯎ
+    */
+    if (
+      previousToken === "a" &&
+      previousPreviousToken &&
+      this.isConsonant(previousPreviousToken)
+    ) {
+      if (nextToken === null || this.isConsonant(nextToken)) {
+        return true;
+      }
     }
 
     return false;
@@ -343,9 +407,30 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      // Resubstitution Rule 2: vowel + y/i at syllable end → ꯏ.
+      /*
+        consonant + ai / ay / ao:
+        The 'a' becomes Cheitap ꯥ.
+      */
+      if (this.shouldUseCheitapAForAiAo(tokens, index)) {
+        result += "ꯥ";
+        continue;
+      }
+
+      /*
+        vowel + y/i at syllable end:
+        The y/i becomes Mapum i/ee ꯏ.
+      */
       if (this.shouldUseMapumIResubstitution(tokens, index)) {
         result += "ꯏ";
+        continue;
+      }
+
+      /*
+        consonant + ao:
+        The 'o' becomes Mapum oo/u ꯎ.
+      */
+      if (this.shouldUseMapumUResubstitution(tokens, index)) {
+        result += "ꯎ";
         continue;
       }
 
