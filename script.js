@@ -108,11 +108,13 @@ class MeiteiMayekTransliterator {
       ...Object.keys(this.cheitap)
     ];
 
-    this.patterns = [...new Set(this.patterns)].sort((a, b) => b.length - a.length);
+    this.patterns = [...new Set(this.patterns)].sort(
+      (a, b) => b.length - a.length
+    );
   }
 
   normalizeEnglishPronunciation(word) {
-    let original = word;
+    const original = word;
     let w = word.toLowerCase().trim();
 
     if (![...w].some((ch) => /[a-z]/.test(ch))) {
@@ -195,26 +197,44 @@ class MeiteiMayekTransliterator {
   }
 
   isConsonant(token) {
-    return this.mapum.hasOwnProperty(token);
+    return Object.prototype.hasOwnProperty.call(this.mapum, token);
+  }
+
+  isVowel(token) {
+    return (
+      Object.prototype.hasOwnProperty.call(this.initialVowels, token) ||
+      Object.prototype.hasOwnProperty.call(this.middleVowels, token)
+    );
   }
 
   previousTokenIsMapumConsonant(tokens, index) {
-    if (index === 0) return false;
-    return this.mapum.hasOwnProperty(tokens[index - 1]);
+    if (index === 0) {
+      return false;
+    }
+
+    return Object.prototype.hasOwnProperty.call(this.mapum, tokens[index - 1]);
   }
 
   shouldUseCheitapNg(tokens, index) {
     const token = tokens[index];
 
-    if (token !== "ng") return false;
+    if (token !== "ng") {
+      return false;
+    }
 
     return this.previousTokenIsMapumConsonant(tokens, index);
   }
 
-  shouldUseLonsum(tokens, index) {
+  shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
-    if (!this.lonsum.hasOwnProperty(token)) {
+    /*
+      Resubstitution Rule 2:
+      When y or i comes after a vowel at the end of a syllable,
+      use the Mapum Mayek for i/ee: ꯏ
+      instead of the Cheitap Mayek vowel sign ꯤ or Mapum y ꯌ.
+    */
+    if (token !== "y" && token !== "i") {
       return false;
     }
 
@@ -225,14 +245,51 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
-    // Important exception:
-    // apng = a + p + ng
-    // Since 'a' is the beginning independent vowel, p must stay Mapum.
-    if (index === 1 && this.initialVowels.hasOwnProperty(previousToken)) {
+    if (!this.isVowel(previousToken)) {
       return false;
     }
 
-    if (!this.middleVowels.hasOwnProperty(previousToken)) {
+    if (nextToken === null) {
+      return true;
+    }
+
+    if (this.isConsonant(nextToken)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  shouldUseLonsum(tokens, index) {
+    const token = tokens[index];
+
+    if (!Object.prototype.hasOwnProperty.call(this.lonsum, token)) {
+      return false;
+    }
+
+    const previousToken = index > 0 ? tokens[index - 1] : null;
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+
+    if (previousToken === null) {
+      return false;
+    }
+
+    /*
+      Important exception:
+      apng = a + p + ng
+
+      Since 'a' is the beginning independent vowel,
+      p must stay Mapum Mayek:
+      apng -> ꯑꯄꯪ, not ꯑꯞꯪ
+    */
+    if (
+      index === 1 &&
+      Object.prototype.hasOwnProperty.call(this.initialVowels, previousToken)
+    ) {
+      return false;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(this.middleVowels, previousToken)) {
       return false;
     }
 
@@ -259,7 +316,7 @@ class MeiteiMayekTransliterator {
       const token = tokens[index];
       const isFirst = index === 0;
 
-      if (this.numbers.hasOwnProperty(token)) {
+      if (Object.prototype.hasOwnProperty.call(this.numbers, token)) {
         result += this.numbers[token];
         continue;
       }
@@ -269,12 +326,24 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      if (isFirst && this.initialVowels.hasOwnProperty(token)) {
+      if (
+        isFirst &&
+        Object.prototype.hasOwnProperty.call(this.initialVowels, token)
+      ) {
         result += this.initialVowels[token];
         continue;
       }
 
-      if (this.middleVowels.hasOwnProperty(token)) {
+      /*
+        Resubstitution Rule 2 must come before normal middle-vowel conversion.
+        Otherwise, i would become ꯤ too early.
+      */
+      if (this.shouldUseMapumIResubstitution(tokens, index)) {
+        result += "ꯏ";
+        continue;
+      }
+
+      if (Object.prototype.hasOwnProperty.call(this.middleVowels, token)) {
         result += this.middleVowels[token];
         continue;
       }
@@ -289,7 +358,7 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      if (this.mapum.hasOwnProperty(token)) {
+      if (Object.prototype.hasOwnProperty.call(this.mapum, token)) {
         result += this.mapum[token];
         continue;
       }
@@ -315,12 +384,9 @@ function handleTransliteration() {
   const output = transliterator.transliterateSentence(input);
 
   document.getElementById("outputText").textContent =
-    output.trim() === "" ? "Output will appear here" : output;
+    output.trim() === "" ? "ꯃꯤꯇꯩ ꯃꯌꯦꯛ output will appear here" : output;
 }
 
-function tryExample(example) {
-  document.getElementById("inputText").value = example;
-  handleTransliteration();
-}
-
-document.getElementById("inputText").addEventListener("input", handleTransliteration);
+document
+  .getElementById("inputText")
+  .addEventListener("input", handleTransliteration);
