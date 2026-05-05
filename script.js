@@ -45,13 +45,13 @@ class MeiteiMayekTransliterator {
     };
 
     /*
-      For visible demo output on browsers/iPad/Chrome:
-      this.apunIyek = "◌꯭";
+      Visible browser/demo form:
+      dra -> ꯗ◌꯭ꯔ
 
-      For technically correct plain text output:
+      For technically correct plain Unicode, change this to:
       this.apunIyek = "꯭";
     */
-    this.apunIyek = "꯭";
+    this.apunIyek = "◌꯭";
 
     this.middleVowels = {
       aa: "ꯥ",
@@ -120,6 +120,10 @@ class MeiteiMayekTransliterator {
     this.patterns = [...new Set(this.patterns)].sort(
       (a, b) => b.length - a.length
     );
+  }
+
+  hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
   }
 
   normalizeEnglishPronunciation(word) {
@@ -205,10 +209,6 @@ class MeiteiMayekTransliterator {
     return tokens;
   }
 
-  hasOwn(object, key) {
-    return Object.prototype.hasOwnProperty.call(object, key);
-  }
-
   isConsonant(token) {
     return this.hasOwn(this.mapum, token);
   }
@@ -263,15 +263,6 @@ class MeiteiMayekTransliterator {
     const previousToken = index > 0 ? tokens[index - 1] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    /*
-      Rule:
-      consonant + ai / ay / ao
-      The 'a' becomes Cheitap ꯥ.
-
-      kai -> ꯀꯥꯏ
-      kay -> ꯀꯥꯏ
-      kao -> ꯀꯥꯎ
-    */
     if (!previousToken || !this.isConsonant(previousToken)) {
       return false;
     }
@@ -282,11 +273,6 @@ class MeiteiMayekTransliterator {
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
-    /*
-      Resubstitution Rule 2:
-      When y or i comes after a vowel at the end of a syllable,
-      use the Mapum Mayek for i/ee: ꯏ.
-    */
     if (token !== "y" && token !== "i") {
       return false;
     }
@@ -324,15 +310,6 @@ class MeiteiMayekTransliterator {
     const previousPreviousToken = index > 1 ? tokens[index - 2] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    /*
-      Rule:
-      consonant + a + o
-      The 'o' becomes Mapum vowel oo/u: ꯎ.
-
-      kao -> ꯀꯥꯎ
-      chao -> ꯆꯥꯎ
-      mao -> ꯃꯥꯎ
-    */
     if (
       previousToken === "a" &&
       previousPreviousToken &&
@@ -360,7 +337,13 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
-    // apng = a + p + ng → p should remain Mapum because a is initial.
+    /*
+      apng = a + p + ng
+
+      Since 'a' is the beginning independent vowel,
+      p must stay Mapum Mayek:
+      apng -> ꯑꯄꯪ, not ꯑꯞꯪ
+    */
     if (index === 1 && this.hasOwn(this.initialVowels, previousToken)) {
       return false;
     }
@@ -378,6 +361,92 @@ class MeiteiMayekTransliterator {
     }
 
     return false;
+  }
+
+  /*
+    This checks whether the word should generate multiple a/aa possibilities.
+
+    We only generate alternatives when:
+    - the word contains at least one normal 'a'
+    - the word does NOT contain 'aa'
+    - the word does NOT contain other vowel letters e, i, o, u
+    - the word has at least one consonant + a position
+
+    Example:
+    kanada -> kanaada / kaanada / kaanaada etc.
+    kang   -> kang / kaang
+    kaang  -> no alternatives because user explicitly wrote aa
+  */
+  shouldGenerateACombinations(rawWord) {
+    const word = rawWord.toLowerCase().trim();
+
+    if (!/[a-z]/.test(word)) {
+      return false;
+    }
+
+    if (word.includes("aa")) {
+      return false;
+    }
+
+    if (!word.includes("a")) {
+      return false;
+    }
+
+    if (/[eiou]/.test(word)) {
+      return false;
+    }
+
+    const tokens = this.tokenizeWord(word);
+
+    for (let i = 1; i < tokens.length; i++) {
+      if (tokens[i] === "a" && this.isConsonant(tokens[i - 1])) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /*
+    Creates all possible versions of a word where each consonant + a
+    can be treated as either:
+    - short/inherent a: a
+    - long a: aa
+
+    Example:
+    kanada -> kanada, kaanada, kanaada, kaanaada, kanadaa, etc.
+    kang   -> kang, kaang
+  */
+  generateACombinationWords(rawWord) {
+    const word = rawWord.toLowerCase().trim();
+    const tokens = this.tokenizeWord(word);
+
+    const aPositions = [];
+
+    for (let i = 1; i < tokens.length; i++) {
+      if (tokens[i] === "a" && this.isConsonant(tokens[i - 1])) {
+        aPositions.push(i);
+      }
+    }
+
+    const total = Math.pow(2, aPositions.length);
+    const variants = [];
+
+    for (let mask = 0; mask < total; mask++) {
+      const newTokens = [...tokens];
+
+      for (let bit = 0; bit < aPositions.length; bit++) {
+        const position = aPositions[bit];
+
+        if ((mask & (1 << bit)) !== 0) {
+          newTokens[position] = "aa";
+        }
+      }
+
+      variants.push(newTokens.join(""));
+    }
+
+    return variants;
   }
 
   transliterateWord(word, normalizeEnglish = true) {
@@ -439,6 +508,25 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
+      /*
+        Special short-a + ng rule:
+        kang -> k + short a + cheitap ng = ꯀꯪ
+        ang  -> initial a + cheitap ng = ꯑꯪ
+
+        Important:
+        kaang is tokenized as k + aa + ng.
+        Since previous token is aa, this rule does not apply.
+        kaang -> ꯀꯥꯡ by normal Lonsum rule.
+      */
+      if (token === "ng") {
+        const previousToken = index > 0 ? tokens[index - 1] : null;
+
+        if (previousToken === "a") {
+          result += this.cheitap.ng;
+          continue;
+        }
+      }
+
       if (this.shouldUseCheitapNg(tokens, index)) {
         result += this.cheitap.ng;
         continue;
@@ -452,7 +540,7 @@ class MeiteiMayekTransliterator {
       if (this.hasOwn(this.mapum, token)) {
         result += this.mapum[token];
 
-        // consonant + r → consonant + apun iyek + r
+        // consonant + r -> consonant + Apun Iyek + r
         if (this.shouldUseApunIyekBeforeR(tokens, index)) {
           result += this.apunIyek;
         }
@@ -467,10 +555,38 @@ class MeiteiMayekTransliterator {
   }
 
   transliterateSentence(text, normalizeEnglish = true) {
-    return text
-      .split(" ")
-      .map((word) => this.transliterateWord(word, normalizeEnglish))
-      .join(" ");
+    const words = text.split(" ");
+
+    const sentenceResults = words.map((word) => {
+      if (word.trim() === "") {
+        return "";
+      }
+
+      const normalizedWord = normalizeEnglish
+        ? this.normalizeEnglishPronunciation(word)
+        : word.toLowerCase().trim();
+
+      if (this.shouldGenerateACombinations(normalizedWord)) {
+        const variants = this.generateACombinationWords(normalizedWord);
+        const transliteratedVariants = variants.map((variant) =>
+          this.transliterateWord(variant, false)
+        );
+
+        const uniqueOutputs = [...new Set(transliteratedVariants)];
+
+        if (uniqueOutputs.length === 1) {
+          return uniqueOutputs[0];
+        }
+
+        return uniqueOutputs
+          .map((output, index) => `${index + 1}. ${output}`)
+          .join("\n");
+      }
+
+      return this.transliterateWord(word, normalizeEnglish);
+    });
+
+    return sentenceResults.join(" ");
   }
 }
 
