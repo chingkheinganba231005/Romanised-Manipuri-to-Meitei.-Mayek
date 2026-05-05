@@ -263,6 +263,15 @@ class MeiteiMayekTransliterator {
     const previousToken = index > 0 ? tokens[index - 1] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
+    /*
+      Rule:
+      consonant + ai / ay / ao
+      The 'a' becomes Cheitap ꯥ.
+
+      kai -> ꯀꯥꯏ
+      kay -> ꯀꯥꯏ
+      kao -> ꯀꯥꯎ
+    */
     if (!previousToken || !this.isConsonant(previousToken)) {
       return false;
     }
@@ -273,6 +282,11 @@ class MeiteiMayekTransliterator {
   shouldUseMapumIResubstitution(tokens, index) {
     const token = tokens[index];
 
+    /*
+      Resubstitution Rule 2:
+      When y or i comes after a vowel at the end of a syllable,
+      use the Mapum Mayek for i/ee: ꯏ.
+    */
     if (token !== "y" && token !== "i") {
       return false;
     }
@@ -310,6 +324,15 @@ class MeiteiMayekTransliterator {
     const previousPreviousToken = index > 1 ? tokens[index - 2] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
+    /*
+      Rule:
+      consonant + a + o
+      The 'o' becomes Mapum vowel oo/u: ꯎ.
+
+      kao -> ꯀꯥꯎ
+      chao -> ꯆꯥꯎ
+      mao -> ꯃꯥꯎ
+    */
     if (
       previousToken === "a" &&
       previousPreviousToken &&
@@ -364,18 +387,18 @@ class MeiteiMayekTransliterator {
   }
 
   /*
-    This checks whether the word should generate multiple a/aa possibilities.
+    Generate a/aa alternatives when:
+    - user wrote normal 'a'
+    - user did not explicitly write 'aa'
+    - there is at least one consonant + a position
 
-    We only generate alternatives when:
-    - the word contains at least one normal 'a'
-    - the word does NOT contain 'aa'
-    - the word does NOT contain other vowel letters e, i, o, u
-    - the word has at least one consonant + a position
+    This works even when the word has other vowels later.
 
     Example:
-    kanada -> kanaada / kaanada / kaanaada etc.
-    kang   -> kang / kaang
-    kaang  -> no alternatives because user explicitly wrote aa
+    kang    -> kang / kaang
+    kanglei -> kanglei / kaanglei
+    kanada  -> kanada / kaanada / kanaada / kaanaada etc.
+    kaanglei -> no alternatives because user explicitly wrote aa
   */
   shouldGenerateACombinations(rawWord) {
     const word = rawWord.toLowerCase().trim();
@@ -389,10 +412,6 @@ class MeiteiMayekTransliterator {
     }
 
     if (!word.includes("a")) {
-      return false;
-    }
-
-    if (/[eiou]/.test(word)) {
       return false;
     }
 
@@ -414,8 +433,8 @@ class MeiteiMayekTransliterator {
     - long a: aa
 
     Example:
-    kanada -> kanada, kaanada, kanaada, kaanaada, kanadaa, etc.
-    kang   -> kang, kaang
+    kanglei -> kanglei, kaanglei
+    kanada  -> kanada, kaanada, kanaada, kaanaada, kanadaa, etc.
   */
   generateACombinationWords(rawWord) {
     const word = rawWord.toLowerCase().trim();
@@ -568,6 +587,7 @@ class MeiteiMayekTransliterator {
 
       if (this.shouldGenerateACombinations(normalizedWord)) {
         const variants = this.generateACombinationWords(normalizedWord);
+
         const transliteratedVariants = variants.map((variant) =>
           this.transliterateWord(variant, false)
         );
