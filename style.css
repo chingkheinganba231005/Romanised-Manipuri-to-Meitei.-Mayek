@@ -60,6 +60,46 @@ textarea:focus {
   border-color: #7b4b2a;
 }
 
+.suggestions-box {
+  margin-top: 18px;
+  min-height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: "Noto Sans Meetei Mayek", Arial, sans-serif;
+}
+
+.suggestion-label {
+  width: 100%;
+  font-family: Arial, sans-serif;
+  font-size: 0.9rem;
+  color: #6f6258;
+  margin-bottom: 2px;
+}
+
+.suggestion-chip {
+  border: 1px solid #c9b9a6;
+  background: #fffaf4;
+  color: #2a1f16;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: 0.15s ease;
+  font-family: "Noto Sans Meetei Mayek", Arial, sans-serif;
+}
+
+.suggestion-chip:hover {
+  background: #f0e1d0;
+  border-color: #7b4b2a;
+}
+
+.suggestion-chip.selected {
+  background: #7b4b2a;
+  color: white;
+  border-color: #7b4b2a;
+}
+
 .output-box {
   margin-top: 28px;
   background: #f8f2ea;
@@ -96,5 +136,9 @@ textarea:focus {
 
   #outputText {
     font-size: 1.8rem;
+  }
+
+  .suggestion-chip {
+    font-size: 1rem;
   }
 }
