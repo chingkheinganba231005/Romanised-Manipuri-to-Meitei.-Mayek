@@ -306,6 +306,17 @@ class MeiteiMayekTransliterator {
       return false;
     }
 
+    /*
+      ai / ay / ao after consonant.
+
+      This must work even when ai/ao is word-final:
+
+      hai   -> ꯍꯥꯏ
+      haiba -> ꯍꯥꯏꯕ
+      mai   -> ꯃꯥꯏ
+      lai   -> ꯂꯥꯏ
+      hao   -> ꯍꯥꯎ
+    */
     return nextToken === "i" || nextToken === "y" || nextToken === "o";
   }
 
@@ -317,22 +328,41 @@ class MeiteiMayekTransliterator {
     }
 
     const previousToken = index > 0 ? tokens[index - 1] : null;
+    const previousPreviousToken = index > 1 ? tokens[index - 2] : null;
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    if (previousToken === null) {
-      return false;
+    /*
+      Main ai / ay rule:
+
+      C + a + i/y should become:
+      C + ꯥ + ꯏ
+
+      This works both word-finally and before consonants:
+
+      hai   -> ꯍꯥꯏ
+      haiba -> ꯍꯥꯏꯕ
+      mai   -> ꯃꯥꯏ
+      laik  -> ꯂꯥꯏꯛ
+    */
+    if (
+      previousToken === "a" &&
+      previousPreviousToken &&
+      this.isConsonant(previousPreviousToken)
+    ) {
+      if (nextToken === null || this.isConsonant(nextToken)) {
+        return true;
+      }
     }
 
-    if (!this.isVowel(previousToken)) {
-      return false;
-    }
-
-    if (nextToken === null) {
-      return true;
-    }
-
-    if (this.isConsonant(nextToken)) {
-      return true;
+    /*
+      General vowel + i/y ending rule.
+      This keeps older behaviour for vowel sequences where i/y
+      should become independent Mapum I.
+    */
+    if (previousToken && this.isVowel(previousToken)) {
+      if (nextToken === null || this.isConsonant(nextToken)) {
+        return true;
+      }
     }
 
     return false;
@@ -547,6 +577,12 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
+      /*
+        IMPORTANT ORDER:
+        ai / ao special rules must run BEFORE normal middle-vowel rules.
+        Otherwise:
+        hai would become ꯍꯥꯤ instead of ꯍꯥꯏ.
+      */
       if (this.shouldUseCheitapAForAiAo(tokens, index)) {
         result += "ꯥ";
         continue;
