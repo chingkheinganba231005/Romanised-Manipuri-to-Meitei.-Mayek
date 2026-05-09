@@ -44,13 +44,6 @@ class MeiteiMayekTransliterator {
       ng: "ꯪ"
     };
 
-    /*
-      Visible browser/demo form:
-      dra -> ꯗ◌꯭ꯔ
-
-      For technically correct plain Unicode, change this to:
-      this.apunIyek = "꯭";
-    */
     this.apunIyek = "꯭";
 
     this.middleVowels = {
@@ -254,19 +247,49 @@ class MeiteiMayekTransliterator {
     return this.previousTokenIsMapumConsonant(tokens, index);
   }
 
-  shouldUseApunIyekBeforeR(tokens, index) {
+  shouldUseApunIyekBeforeCluster(tokens, index) {
     const token = tokens[index];
     const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
+    const afterNextToken = index < tokens.length - 2 ? tokens[index + 2] : null;
 
+    /*
+      Apun Iyek joins consonant clusters inside one syllable.
+
+      Rule 1:
+      C + r is one onset cluster.
+      dra  -> ꯗ꯭ꯔ
+      draa -> ꯗ꯭ꯔꯥ
+
+      Rule 2:
+      C + w + vowel is also one onset cluster.
+      kwa    -> ꯀ꯭ꯋ
+      kwaa   -> ꯀ꯭ꯋꯥ
+      kwi    -> ꯀ꯭ꯋꯤ
+      twa    -> ꯇ꯭ꯋ
+      thwaai -> ꯊ꯭ꯋꯥꯏ
+
+      Important:
+      Final w after a consonant still works as texting shortcut for ou.
+      tw -> ꯇꯧ
+      kw -> ꯀꯧ
+    */
     if (!this.isConsonant(token)) {
       return false;
     }
 
-    if (token === "r") {
+    if (token === "r" || token === "w") {
       return false;
     }
 
-    return nextToken === "r";
+    if (nextToken === "r") {
+      return true;
+    }
+
+    if (nextToken === "w" && afterNextToken && this.isVowel(afterNextToken)) {
+      return true;
+    }
+
+    return false;
   }
 
   shouldUseCheitapAForAiAo(tokens, index) {
@@ -343,21 +366,39 @@ class MeiteiMayekTransliterator {
     const token = tokens[index];
 
     /*
-      w after consonant is used like ou.
+      Texting shortcut:
+      final/syllable-final w after consonant behaves like ou.
+
       tw -> tou -> ꯇꯧ
       kw -> kou -> ꯀꯧ
+
+      But w before vowel is real consonantal w/ꯋ with Apun Iyek:
+
+      twa    -> ꯇ꯭ꯋ
+      kwa    -> ꯀ꯭ꯋ
+      kwi    -> ꯀ꯭ꯋꯤ
+      thwaai -> ꯊ꯭ꯋꯥꯏ
     */
     if (token !== "w") {
       return false;
     }
 
     const previousToken = index > 0 ? tokens[index - 1] : null;
+    const nextToken = index < tokens.length - 1 ? tokens[index + 1] : null;
 
-    if (!previousToken) {
+    if (!previousToken || !this.isConsonant(previousToken)) {
       return false;
     }
 
-    return this.isConsonant(previousToken);
+    if (this.shouldUseApunIyekBeforeCluster(tokens, index - 1)) {
+      return false;
+    }
+
+    if (nextToken && this.isVowel(nextToken)) {
+      return false;
+    }
+
+    return true;
   }
 
   shouldExpandInitialNgToNang(tokens, index) {
@@ -368,7 +409,7 @@ class MeiteiMayekTransliterator {
       If ng begins a word/syllable and is followed by a consonant,
       treat it as explicit nang, not naang.
 
-      nglei -> nanglei
+      nglei   -> nanglei
       ngkhong -> nangkhong
     */
     if (token !== "ng") {
@@ -526,19 +567,11 @@ class MeiteiMayekTransliterator {
         continue;
       }
 
-      /*
-        w after consonant behaves like ou.
-        tw -> ꯇꯧ
-      */
       if (this.shouldUseWAsOu(tokens, index)) {
         result += this.middleVowels["ou"];
         continue;
       }
 
-      /*
-        Initial ng + consonant behaves like explicit nang.
-        nglei -> ꯅꯪꯂꯩ
-      */
       if (this.shouldExpandInitialNgToNang(tokens, index)) {
         result += this.mapum["n"] + this.cheitap["ng"];
         continue;
@@ -546,7 +579,7 @@ class MeiteiMayekTransliterator {
 
       /*
         Special short-a + ng rule:
-        kang -> ꯀꯪ
+        kang  -> ꯀꯪ
         kaang -> ꯀꯥꯡ
       */
       if (token === "ng") {
@@ -571,7 +604,7 @@ class MeiteiMayekTransliterator {
       if (this.hasOwn(this.mapum, token)) {
         result += this.mapum[token];
 
-        if (this.shouldUseApunIyekBeforeR(tokens, index)) {
+        if (this.shouldUseApunIyekBeforeCluster(tokens, index)) {
           result += this.apunIyek;
         }
 
